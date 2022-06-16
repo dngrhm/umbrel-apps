@@ -1,0 +1,93 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: $APP_STACKS_BLOCKCHAIN_STATUS_IP
+      # APP_PORT: $APP_STACKS_BLOCKCHAIN_STATUS_PORT
+      APP_PORT: 3000
+
+  stacks:
+    image: "blockstack/stacks-blockchain:2.05.0.1.0-stretch"
+    depends_on:
+      - stacks_api
+    restart: on-failure
+    stop_grace_period: 1m
+    command: /app/bin/entrypoint.sh
+    environment:
+      BURNCHAIN_MODE: mainnet
+      BITCOIN_PEER_HOST: $BITCOIN_IP
+      BITCOIN_RPC_USERNAME: $BITCOIN_RPC_USER
+      BITCOIN_RPC_PASSWORD: $BITCOIN_RPC_PASS
+      BITCOIN_RPC_PORT: $BITCOIN_RPC_PORT
+      BITCOIN_RPC_PEER_PORT: $BITCOIN_P2P_PORT
+    ports:
+      - 20443:20443
+      - 20444:20444
+    volumes:
+      - ${APP_DATA_DIR}/persistent-data/stacks-blockchain/mainnet:/root/stacks-node/data
+      - ${APP_DATA_DIR}/config/mainnet:/src/stacks-node
+      - ${APP_DATA_DIR}/bin:/app/bin
+    networks:
+      default:
+        ipv4_address: $APP_STACKS_BLOCKCHAIN_STACKS_IP
+
+  stacks_api:
+    image: "hirosystems/stacks-blockchain-api:4.0"
+    depends_on:
+      - stacks_db
+    restart: on-failure
+    stop_grace_period: 1m
+    environment:
+      PG_HOST: stacks_db
+      PG_PORT: 5432
+      PG_USER: stacks
+      PG_PASSWORD: blockchainsystem
+      PG_DATABASE: stacks_blockchain_api
+      BTC_RPC_HOST: $BITCOIN_IP
+      BTC_RPC_PORT: $BITCOIN_RPC_PORT
+      BTC_RPC_USER: $BITCOIN_RPC_USER
+      BTC_RPC_PW: $BITCOIN_RPC_PASS
+      STACKS_CHAIN_ID: 0x00000001
+      STACKS_CORE_RPC_HOST: $APP_STACKS_BLOCKCHAIN_STACKS_IP
+      STACKS_CORE_RPC_PORT: 20443
+      STACKS_CORE_EVENT_PORT: 3700
+      STACKS_CORE_EVENT_HOST: http://0.0.0.0
+      STACKS_BLOCKCHAIN_API_HOST: 0.0.0.0
+      STACKS_BLOCKCHAIN_API_PORT: 3999
+      STACKS_BLOCKCHAIN_API_DB: pg
+    ports:
+      - "${APP_STACKS_BLOCKCHAIN_API_API_PORT}:3999"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      default:
+        ipv4_address: $APP_STACKS_BLOCKCHAIN_API_IP
+
+  stacks_db:
+    image: "postgres:14.2"
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: blockchainsystem
+      POSTGRES_USER: stacks
+      POSTGRES_DB: stacks_blockchain_api
+    volumes:
+      - ${APP_DATA_DIR}/persistent-data/postgres:/var/lib/postgresql
+    networks:
+      default:
+        ipv4_address: $APP_STACKS_BLOCKCHAIN_DB_IP
+
+  status:
+    image: "dngrhm/stacks-status:v0.0.2"
+    depends_on:
+      - stacks
+      - stacks_api
+    environment:
+      STACKS_API_HOST: http://${APP_STACKS_BLOCKCHAIN_API_IP}:${APP_STACKS_BLOCKCHAIN_API_API_PORT}
+    ports:
+      - "${APP_STACKS_BLOCKCHAIN_STATUS_PORT}:3000"
+    networks:
+      default:
+        ipv4_address: $APP_STACKS_BLOCKCHAIN_STATUS_IP
