@@ -4,11 +4,10 @@ services:
   app_proxy:
     environment:
       APP_HOST: $APP_STACKS_BLOCKCHAIN_STATUS_IP
-      # APP_PORT: $APP_STACKS_BLOCKCHAIN_STATUS_PORT
       APP_PORT: 3000
 
   stacks:
-    image: "blockstack/stacks-blockchain:2.05.0.1.0-stretch"
+    image: "blockstack/stacks-blockchain:2.05.0.2.2-stretch"
     depends_on:
       - stacks_api
     restart: on-failure
@@ -80,7 +79,7 @@ services:
         ipv4_address: $APP_STACKS_BLOCKCHAIN_DB_IP
 
   status:
-    image: "dngrhm/stacks-status:v0.0.2"
+    image: "dngrhm/stacks-status:0.0.4"
     depends_on:
       - stacks
       - stacks_api
